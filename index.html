@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Lift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- The Lift · scroll story · three.js r170 bundled in app.js · car in car.glb (see PARTS.md) -->
+<style>
+:root{
+  --bg:#0b0b0c; --load:#161618; --ink:#f2f2f2; --mute:rgba(242,242,242,.55); --rule:rgba(255,255,255,.12);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:#05070d;color:var(--ink);font-family:var(--font);-webkit-text-size-adjust:100%;}
+html{scrollbar-width:none;} body::-webkit-scrollbar{display:none;}
+body.embed{overflow:auto;}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;pointer-events:none;opacity:0;transition:opacity .7s ease;}
+#gl.on{opacity:1;}
+/* ---------- loading: paints in the very first frame ---------- */
+#load{position:fixed;inset:0;background:var(--load);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;z-index:20;transition:opacity .55s ease;}
+#load.out{opacity:0;pointer-events:none;}
+#load .title{font-weight:500;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);}
+#dial{width:min(42vw,180px);height:auto;overflow:visible;}
+#dial .trk{fill:none;stroke:rgba(255,255,255,.14);stroke-width:1.5;}
+#dial .arc{fill:none;stroke:#fff;stroke-width:1.5;stroke-linecap:round;}
+#dial .dot{fill:#fff;}
+#dial .pct{fill:#fff;font:500 15px var(--font);font-variant-numeric:tabular-nums;text-anchor:middle;dominant-baseline:central;}
+.slow{position:absolute;left:50%;bottom:max(28px,6vh);transform:translate(-50%,8px);opacity:0;transition:opacity .5s,transform .5s;font:500 13px/1 var(--font);color:rgba(255,255,255,.8);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:11px 18px;cursor:pointer;white-space:nowrap;}
+.slow.on{opacity:1;transform:translate(-50%,0);} .slow:hover{color:#fff;border-color:rgba(255,255,255,.45);}
+.nogl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--mute);font-size:14px;}
+#scroll{position:relative;height:620vh;}
+header.top{position:fixed;left:0;right:0;top:0;z-index:12;display:flex;align-items:center;justify-content:space-between;padding:max(18px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) 0 max(22px,env(safe-area-inset-left));pointer-events:none;}
+header.top .mark{font:600 15px/1 var(--font);letter-spacing:-.01em;color:#fff;display:flex;align-items:center;gap:9px;}
+header.top .mark i{width:9px;height:9px;border:1.5px solid #fff;border-radius:2px;transform:rotate(45deg);}
+header.top .meta{font:500 12px/1 var(--font);color:rgba(255,255,255,.6);}
+#hint{position:fixed;left:50%;bottom:max(26px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;font:500 12px var(--font);color:rgba(255,255,255,.75);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;}
+#hint b{width:1px;height:34px;background:linear-gradient(#fff,transparent);animation:drop 1.8s ease-in-out infinite;transform-origin:top;}
+@keyframes drop{0%{transform:scaleY(0);opacity:1}60%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){#hint b{animation:none;}}
+#caps .cap{position:fixed;z-index:11;bottom:clamp(70px,14vh,140px);max-width:min(380px,78vw);opacity:0;pointer-events:none;will-change:opacity,transform;}
+#caps .cap.left{left:max(26px,6vw);} #caps .cap.right{right:max(26px,6vw);text-align:right;}
+#caps .eb{display:inline-block;font:500 12px/1 var(--font);color:rgba(255,255,255,.62);padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.35);}
+#caps p{margin:0;font:500 clamp(20px,2.3vw,28px)/1.22 var(--font);letter-spacing:-.015em;color:#fff;text-wrap:balance;text-shadow:0 2px 24px rgba(0,0,0,.45);}
+#final{position:fixed;left:50%;top:clamp(84px,15vh,150px);transform:translateX(-50%);z-index:11;width:min(900px,88vw);text-align:center;font:600 clamp(28px,4.4vw,58px)/1.05 var(--font);letter-spacing:-.025em;color:#fff;text-wrap:balance;opacity:0;pointer-events:none;text-shadow:0 2px 30px rgba(0,0,0,.5);}
+#barWrap{position:fixed;left:0;right:0;bottom:0;height:2px;z-index:12;background:rgba(255,255,255,.08);}
+#bar{height:100%;background:#fff;transform-origin:left;transform:scaleX(0);}
+@media (pointer:coarse){ header.top .meta{display:none;} #caps .cap{bottom:110px;} }
+html.vs,html.vs body{height:100%;overflow:hidden;overscroll-behavior:none;} html.vs #scroll{display:none;} html.vs #gl{touch-action:none;}
+#play{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:13;display:flex;align-items:center;gap:8px;height:40px;padding:0 16px 0 13px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(10,12,18,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;font:500 13px var(--font);cursor:pointer;}
+#play:hover{border-color:rgba(255,255,255,.45);} #play svg{width:12px;height:12px;} #play .pa{display:none;} #play.on .pa{display:block;} #play.on .pl{display:none;}
+#barWrap{height:14px !important;background:transparent !important;cursor:pointer;touch-action:none;} #barWrap::before{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);} #bar{position:absolute;left:0;right:0;bottom:0;height:3px !important;}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="A supercar being lifted up a glass skyscraper"></canvas>
+<header class="top"><div class="mark"><i></i>The Lift</div><div class="meta">Floor 62 · Showroom</div></header>
+<div id="caps"></div>
+<div id="final"></div>
+<div id="hint">Scroll, or press Play<b></b></div>
+<button id="play" type="button" aria-label="Play the story"><svg class="pl" viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z" fill="#fff"/></svg><svg class="pa" viewBox="0 0 12 12"><path d="M2 1h3v10H2zM7 1h3v10H7z" fill="#fff"/></svg><span>Play</span></button>
+<div id="barWrap"><div id="bar"></div></div>
+<main id="scroll" aria-label="Scroll to follow the lift"></main>
+<div id="load" role="status" aria-live="polite">
+  <div class="title">The Lift</div>
+  <svg id="dial" viewBox="0 0 120 120" aria-hidden="true">
+    <circle class="trk" cx="60" cy="60" r="46"/><path class="arc" d=""/><circle class="dot" r="3.2" cx="60" cy="14"/>
+    <text class="pct" x="60" y="60">0%</text>
+  </svg>
+</div>
+<script>
+/* loading dial: paints in the first frame, runs on its own clock, 100% only after a real rendered frame */
+(() => {
+  const SKIP = false;
+  const el = document.getElementById('load'), arc = el.querySelector('.arc'), dot = el.querySelector('.dot'), pct = el.querySelector('.pct'), cv = document.getElementById('gl');
+  const L = { t0:performance.now(), vt:0, last:performance.now(), p:0, ph:0, ready:false, fin:null, done:false, slow:null };
+  const E1 = x => 1 - Math.pow(1 - x, 2.4), EO = x => 1 - Math.pow(1 - x, 3);
+  function draw(p){ const a = -Math.PI/2 + p*2*Math.PI, x = 60 + 46*Math.cos(a), y = 60 + 46*Math.sin(a);
+    arc.setAttribute('d', p < .001 ? '' : (p > .9999 ? 'M60 14A46 46 0 1 1 59.99 14' : `M60 14A46 46 0 ${p > .5 ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)}`));
+    dot.setAttribute('cx', x.toFixed(2)); dot.setAttribute('cy', y.toFixed(2)); pct.textContent = Math.round(p*100) + '%'; }
+  function finish(){ L.done = true; el.classList.add('out'); cv.classList.add('on'); if (L.slow) L.slow.remove(); setTimeout(() => el.style.display = 'none', 600);
+    if (window.parent !== window) try { parent.postMessage({type:'starter:ready'}, '*'); } catch (_) {} }
+  function tick(now){ if (L.done) return; const t = now - L.t0, dt = Math.min(100, now - L.last); L.last = now;
+    L.vt += dt*((L.ready && t > 2200) ? 2.6 : 1);
+    if (L.ph === 0){ const x = Math.min(1, L.vt/5200); L.p = .92*E1(x); if (x >= 1){ L.ph = 1; L.tail0 = L.vt; } }
+    else if (L.ph === 1){ L.p = .92 + .065*(1 - Math.exp(-(L.vt - L.tail0)/10000)); }
+    if (L.ph === 1 && L.ready && !L.fin && t > 1200){ L.fin = {t:now, p0:L.p}; L.ph = 2; }
+    if (L.ph === 2){ const u = Math.min(1, (now - L.fin.t)/650); L.p = L.fin.p0 + (1 - L.fin.p0)*EO(u); if (u >= 1 && now - L.fin.t > 830) return finish(); }
+    if (!L.fin && t > 15000 && !L.slow){ const b = document.createElement('button'); b.className = 'slow'; b.textContent = 'Taking a while? Open anyway';
+      b.onclick = () => finish(); el.appendChild(b); L.slow = b; requestAnimationFrame(() => b.classList.add('on')); }
+    if (!L.fin && t > 22000 && L.ready === false && L.frame) finish();
+    draw(L.p); requestAnimationFrame(tick); }
+  window.__LOAD = { ready(){ L.ready = true; if (SKIP) finish(); }, fail(msg){ el.innerHTML = '<div class="nogl">' + (msg || 'This page needs WebGL 2. Try a recent Chrome, Safari or Firefox.') + '</div>'; } };
+  if (SKIP){ el.style.display = 'none'; cv.classList.add('on'); } else { draw(0); requestAnimationFrame(tick); }
+})();
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
